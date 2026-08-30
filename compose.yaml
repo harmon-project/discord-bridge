@@ -1,0 +1,9 @@
+services:
+  harmon-bridge:
+    build: .
+    container_name: harmon-bridge
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./config.json:/source/config.json
