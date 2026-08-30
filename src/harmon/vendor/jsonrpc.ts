@@ -1,5 +1,5 @@
 // Vendored as-is from harmon-project/harmon lib/src/jsonrpc.ts (0BSD).
-import { WS } from "./websocke.js";
+import { WS } from "./websocket.js";
 
 type Version = "1.0" | "2.0";
 
@@ -33,7 +33,7 @@ type Message = Request | Response;
 
 export class Client<
 	ClientToServer extends Record<keyof ClientToServer, (...args: any[]) => any>,
-	ServerToClient extends Record<keyof ServerToClient, (...args: any[]) => void>
+	ServerToClient extends Record<keyof ServerToClient, (...args: any[]) => void>,
 > {
 	private socket: WS;
 	private counter = 0;
@@ -45,7 +45,10 @@ export class Client<
 			reject: (reason?: any) => void;
 		}
 	>();
-	private listeners = new Map<keyof ServerToClient, Set<ServerToClient[keyof ServerToClient]>>();
+	private listeners = new Map<
+		keyof ServerToClient,
+		Set<ServerToClient[keyof ServerToClient]>
+	>();
 
 	public onOpen?: () => void;
 	public onClose?: () => void;
@@ -62,7 +65,9 @@ export class Client<
 				const message: Message = JSON.parse(event.data);
 
 				if ("method" in message) {
-					const listeners = this.listeners.get(message.method as keyof ServerToClient);
+					const listeners = this.listeners.get(
+						message.method as keyof ServerToClient,
+					);
 					for (const listener of listeners ?? []) {
 						const params =
 							typeof message.params == "object"
@@ -103,13 +108,16 @@ export class Client<
 		};
 	}
 
-	call<K extends keyof ClientToServer>(method: K, ...params: Parameters<ClientToServer[K]>) {
+	call<K extends keyof ClientToServer>(
+		method: K,
+		...params: Parameters<ClientToServer[K]>
+	) {
 		const id = this.counter++;
 		const request = {
 			jsonrpc: "2.0",
 			method,
 			params,
-			id
+			id,
 		};
 		this.socket.send(JSON.stringify(request));
 
