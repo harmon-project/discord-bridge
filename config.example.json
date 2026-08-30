@@ -1,11 +1,13 @@
 {
 	"harmon": {
-		"url": "wss://your-harmon-server.example.com/ws"
+		"url": "wss://your-harmon-server.example.com/ws",
+		"profileName": "Discord Bridge"
 	},
 	"channels": [
 		{
 			"discordChannelId": "123456789012345678",
-			"harmonChannelId": "harmon-channel-id-here"
+			"harmonChannelId": "harmon-channel-id-here",
+			"webhookName": "harmon-bridge"
 		}
 	]
 }

@@ -22,7 +22,11 @@ export async function startBridge(
 	const ourPublicKeyZ32 = uint8ArrayToZ32(identity.publicKey);
 	const pairs: Pair[] = [];
 
-	for (const { discordChannelId, harmonChannelId } of config.channels) {
+	for (const {
+		discordChannelId,
+		harmonChannelId,
+		webhookName,
+	} of config.channels) {
 		const channel = await discord.channels.fetch(discordChannelId);
 		if (!channel || channel.type !== ChannelType.GuildText) {
 			throw new Error(
@@ -30,8 +34,17 @@ export async function startBridge(
 			);
 		}
 
-		const webhook = await getOrCreateWebhook(channel as TextChannel);
-		const profileName = config.harmon.profileName ?? "Discord Bridge";
+		const webhook = await getOrCreateWebhook(
+			channel as TextChannel,
+			webhookName,
+		);
+		const profileName = config.harmon.profileName;
+
+		if (!profileName) {
+			console.error("[bridge] config.harmon.profileName must be set");
+			return;
+		}
+
 		const harmon = new HarmonClient(
 			config.harmon.url,
 			identity,
@@ -60,15 +73,25 @@ export async function startBridge(
 			// Don't echo our own relayed messages back to Discord.
 			if (message.profile.public_key === ourPublicKeyZ32) return;
 
-			// TODO: relay message.attachments (GET /files/:id -> Discord attachment).
-			const content = `${message.content}`;
+			try {
+				// TODO: relay message.attachments (GET /files/:id -> Discord attachment).
+				const content = `${message.content}`;
+				const username = sanitizeWebhookUsername(
+					`${message.profile.name || "Unnamed user"} [Harmon]`,
+				);
 
-			for (const chunk of splitForDiscord(content)) {
-				await webhook.send({
-					content: chunk,
-					username: `${message.profile.name || "Unnamed user"} [Harmon]`,
-					// TODO: avatarURL - Harmon profiles have no avatar field yet.
-				});
+				for (const chunk of splitForDiscord(content)) {
+					await webhook.send({
+						content: chunk,
+						username,
+						// TODO: avatarURL - Harmon profiles have no avatar field yet.
+					});
+				}
+			} catch (error) {
+				console.error(
+					`[bridge] failed to relay Harmon message to Discord:`,
+					error,
+				);
 			}
 		});
 
@@ -98,6 +121,17 @@ export async function startBridge(
 	});
 
 	return pairs;
+}
+
+// Discord rejects webhook usernames containing "discord" or "clyde"
+// (case-insensitive), so any Harmon display name with those substrings
+// would otherwise crash the relay. Break the match up with a visible
+// separator rather than a zero-width one - Discord strips those before
+// checking, which would defeat the point.
+function sanitizeWebhookUsername(name: string): string {
+	return name
+		.replace(/discord/gi, (m) => `${m.slice(0, 4)}·${m.slice(4)}`)
+		.replace(/clyde/gi, (m) => `${m.slice(0, 2)}·${m.slice(2)}`);
 }
 
 function splitForDiscord(content: string): string[] {

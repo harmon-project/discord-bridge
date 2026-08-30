@@ -1,18 +1,19 @@
 import type { TextChannel, Webhook } from "discord.js";
 
-const WEBHOOK_NAME = "harmon-bridge";
-
 /**
- * Reuses an existing "harmon-bridge" webhook on the channel if one exists,
- * otherwise creates it. Requires the "Manage Webhooks" permission.
+ * Reuses an existing webhook with the given name on the channel if one
+ * exists, otherwise creates it. Requires the "Manage Webhooks" permission.
  */
-export async function getOrCreateWebhook(channel: TextChannel): Promise<Webhook> {
+export async function getOrCreateWebhook(
+	channel: TextChannel,
+	webhookName: string,
+): Promise<Webhook> {
 	const webhooks = await channel.fetchWebhooks();
-	const existing = webhooks.find((webhook) => webhook.name === WEBHOOK_NAME);
+	const existing = webhooks.find((webhook) => webhook.name === webhookName);
 	if (existing) return existing;
 
 	return channel.createWebhook({
-		name: WEBHOOK_NAME,
-		reason: "Harmon <-> Discord chat bridge"
+		name: webhookName,
+		reason: "Harmon <-> Discord chat bridge",
 	});
 }

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 export interface ChannelPair {
 	discordChannelId: string;
 	harmonChannelId: string;
+	webhookName: string;
 }
 
 export interface BridgeConfig {
@@ -26,9 +27,9 @@ export function loadConfig(path: string): BridgeConfig {
 	}
 
 	for (const pair of config.channels) {
-		if (!pair.discordChannelId || !pair.harmonChannelId) {
+		if (!pair.discordChannelId || !pair.harmonChannelId || !pair.webhookName) {
 			throw new Error(
-				`${path}: every entry in "channels" needs both "discordChannelId" and "harmonChannelId"`
+				`${path}: every entry in "channels" needs "discordChannelId", "harmonChannelId", and "webhookName"`,
 			);
 		}
 	}
