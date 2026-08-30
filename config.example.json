@@ -1,0 +1,11 @@
+{
+	"harmon": {
+		"url": "wss://your-harmon-server.example.com/ws"
+	},
+	"channels": [
+		{
+			"discordChannelId": "123456789012345678",
+			"harmonChannelId": "harmon-channel-id-here"
+		}
+	]
+}

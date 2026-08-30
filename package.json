@@ -1,0 +1,32 @@
+{
+	"name": "harmon-chat-bridge",
+	"version": "0.1.0",
+	"description": "Relays messages between a Discord channel and a Harmon channel",
+	"type": "module",
+	"license": "0BSD",
+	"engines": {
+		"node": ">=20"
+	},
+	"packageManager": "pnpm@11.4.0",
+	"scripts": {
+		"dev": "tsx watch src/index.ts",
+		"start": "node --enable-source-maps dist/index.js",
+		"build": "tsc -p tsconfig.json",
+		"typecheck": "tsc -p tsconfig.json --noEmit"
+	},
+	"dependencies": {
+		"@noble/curves": "^2.2.0",
+		"@noble/hashes": "^2.2.0",
+		"@scure/bip39": "^2.2.0",
+		"discord.js": "^14.16.0",
+		"dotenv": "^16.4.5",
+		"rfc4648": "^1.5.4",
+		"ws": "^8.18.0"
+	},
+	"devDependencies": {
+		"@types/node": "^20.14.0",
+		"@types/ws": "^8.5.12",
+		"tsx": "^4.19.0",
+		"typescript": "^5.6.0"
+	}
+}
