@@ -1,7 +1,6 @@
 # harmon-chat-bridge
 
-Relays messages between a Discord channel and a Harmon channel. See
-[PLAN.md](./PLAN.md) for the full design and current limitations.
+Relays messages between a Discord channel and a Harmon channel.
 
 ## Setup
 

@@ -1,6 +1,7 @@
 services:
   harmon-bridge:
     build: .
+    image: heraclitoqsaldanha/harmon-discord-bridge:latest
     container_name: harmon-bridge
     restart: unless-stopped
     env_file:
