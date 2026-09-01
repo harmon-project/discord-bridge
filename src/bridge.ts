@@ -94,9 +94,7 @@ export async function startBridge(
 				const oversizedLinks: string[] = [];
 				for (const attachment of message.attachments) {
 					if (attachment.size > DISCORD_MAX_ATTACHMENT_BYTES) {
-						oversizedLinks.push(
-							`[${attachment.name} (${formatBytes(attachment.size)}) too large to relay - ${harmonHttpUrl}/files/${attachment.id}]`,
-						);
+						oversizedLinks.push(`${harmonHttpUrl}/files/${attachment.id}`);
 						continue;
 					}
 
@@ -192,9 +190,4 @@ function truncateForDiscord(content: string, extraLines: string[] = []): string 
 	const budget = Math.max(0, DISCORD_MESSAGE_LIMIT - (suffix ? suffix.length + 1 : 0));
 	const body = content.length > budget ? content.slice(0, budget) : content;
 	return [body, suffix].filter(Boolean).join("\n");
-}
-
-function formatBytes(bytes: number): string {
-	const mb = bytes / (1024 * 1024);
-	return `${mb.toFixed(1)}MB`;
 }
