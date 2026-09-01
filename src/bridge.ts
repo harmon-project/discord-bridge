@@ -1,9 +1,14 @@
-import type { Client as DiscordClient, TextChannel } from "discord.js";
+import type {
+	AttachmentPayload,
+	Client as DiscordClient,
+	TextChannel,
+} from "discord.js";
 import { ChannelType } from "discord.js";
 import type { BridgeConfig } from "./config.js";
-import { HarmonClient } from "./harmon/client.js";
+import { deriveHttpUrl, HarmonClient } from "./harmon/client.js";
 import type { HarmonIdentity } from "./harmon/identity.js";
 import { uint8ArrayToZ32 } from "./harmon/vendor/utils.js";
+import { getFile, postFiles, type UploadableFile } from "./harmon/vendor/http.js";
 import { getOrCreateWebhook } from "./discord/webhooks.js";
 
 const DISCORD_MESSAGE_LIMIT = 2000;
@@ -20,6 +25,7 @@ export async function startBridge(
 	identity: HarmonIdentity,
 ) {
 	const ourPublicKeyZ32 = uint8ArrayToZ32(identity.publicKey);
+	const harmonHttpUrl = deriveHttpUrl(config.harmon.url);
 	const pairs: Pair[] = [];
 
 	for (const {
@@ -74,19 +80,33 @@ export async function startBridge(
 			if (message.profile.public_key === ourPublicKeyZ32) return;
 
 			try {
-				// TODO: relay message.attachments (GET /files/:id -> Discord attachment).
 				const content = `${message.content}`;
 				const username = sanitizeWebhookUsername(
 					`${message.profile.name || "Unnamed user"} [Harmon]`,
 				);
 
-				for (const chunk of splitForDiscord(content)) {
-					await webhook.send({
-						content: chunk,
-						username,
-						// TODO: avatarURL - Harmon profiles have no avatar field yet.
-					});
+				const files: AttachmentPayload[] = [];
+				for (const attachment of message.attachments) {
+					try {
+						const blob = await getFile(harmonHttpUrl, attachment.id);
+						files.push({
+							attachment: Buffer.from(await blob.arrayBuffer()),
+							name: attachment.name,
+						});
+					} catch (error) {
+						console.error(
+							`[bridge] failed to fetch Harmon attachment ${attachment.id}:`,
+							error,
+						);
+					}
 				}
+
+				await webhook.send({
+					content: truncateForDiscord(content),
+					username,
+					files,
+					// TODO: avatarURL - Harmon profiles have no avatar field yet.
+				});
 			} catch (error) {
 				console.error(
 					`[bridge] failed to relay Harmon message to Discord:`,
@@ -107,11 +127,26 @@ export async function startBridge(
 		const content = message.content.trim();
 		if (!content && message.attachments.size === 0) return;
 
-		// TODO: relay message.attachments (download -> POST /files -> attachment ids).
 		const prefixed = `**${message.member?.displayName ?? message.author.username}:** ${content}`;
 
 		try {
-			await pair.harmon.sendMessage(prefixed);
+			const attachmentIds: string[] = [];
+			if (message.attachments.size > 0) {
+				const files: UploadableFile[] = [];
+				for (const attachment of message.attachments.values()) {
+					const response = await fetch(attachment.url);
+					files.push({
+						name: attachment.name,
+						mimeType: attachment.contentType ?? "application/octet-stream",
+						data: Buffer.from(await response.arrayBuffer()),
+					});
+				}
+
+				const uploaded = await postFiles(harmonHttpUrl, files);
+				attachmentIds.push(...uploaded.map((file) => file.id));
+			}
+
+			await pair.harmon.sendMessage(prefixed, attachmentIds);
 		} catch (error) {
 			console.error(
 				`[bridge] failed to relay Discord message to Harmon:`,
@@ -134,12 +169,8 @@ function sanitizeWebhookUsername(name: string): string {
 		.replace(/clyde/gi, (m) => `${m.slice(0, 2)}·${m.slice(2)}`);
 }
 
-function splitForDiscord(content: string): string[] {
-	if (content.length <= DISCORD_MESSAGE_LIMIT) return [content];
-
-	const chunks: string[] = [];
-	for (let i = 0; i < content.length; i += DISCORD_MESSAGE_LIMIT) {
-		chunks.push(content.slice(i, i + DISCORD_MESSAGE_LIMIT));
-	}
-	return chunks;
+function truncateForDiscord(content: string): string {
+	return content.length <= DISCORD_MESSAGE_LIMIT
+		? content
+		: content.slice(0, DISCORD_MESSAGE_LIMIT);
 }

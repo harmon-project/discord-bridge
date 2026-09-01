@@ -19,9 +19,8 @@ means the bridge re-registers as a new Harmon identity.
 
 ## Status
 
-Implemented: auth against Harmon, joining channels, text relay both
-directions, Discord webhook identity mirroring for Harmon → Discord.
+Implemented: auth against Harmon, joining channels, text + attachment relay
+both directions, Discord webhook identity mirroring for Harmon → Discord.
 
-Not yet implemented (see PLAN.md): attachment relay, message edit/delete
-(not supported by the Harmon protocol at all), reconnect backfill via
-`loadMessages`.
+Not yet implemented (see PLAN.md): message edit/delete (not supported by
+the Harmon protocol at all), reconnect backfill via `loadMessages`.
