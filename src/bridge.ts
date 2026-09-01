@@ -94,7 +94,9 @@ export async function startBridge(
 				const oversizedLinks: string[] = [];
 				for (const attachment of message.attachments) {
 					if (attachment.size > DISCORD_MAX_ATTACHMENT_BYTES) {
-						oversizedLinks.push(`${harmonHttpUrl}/files/${attachment.id}`);
+						oversizedLinks.push(
+							`[${attachment.name}](${harmonHttpUrl}/files/${attachment.id})`,
+						);
 						continue;
 					}
 
