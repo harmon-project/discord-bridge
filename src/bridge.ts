@@ -12,6 +12,11 @@ import { getFile, postFiles, type UploadableFile } from "./harmon/vendor/http.js
 import { getOrCreateWebhook } from "./discord/webhooks.js";
 
 const DISCORD_MESSAGE_LIMIT = 2000;
+// Discord webhooks reject uploads above the guild's boost-tier cap (10MB on
+// a non-boosted server, up to 100MB boosted). We don't know the target
+// guild's tier here, so use the safe non-boosted default rather than risk a
+// 413 on send.
+const DISCORD_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 
 interface Pair {
 	discordChannelId: string;
@@ -86,7 +91,15 @@ export async function startBridge(
 				);
 
 				const files: AttachmentPayload[] = [];
+				const oversizedLinks: string[] = [];
 				for (const attachment of message.attachments) {
+					if (attachment.size > DISCORD_MAX_ATTACHMENT_BYTES) {
+						oversizedLinks.push(
+							`[${attachment.name} (${formatBytes(attachment.size)}) too large to relay - ${harmonHttpUrl}/files/${attachment.id}]`,
+						);
+						continue;
+					}
+
 					try {
 						const blob = await getFile(harmonHttpUrl, attachment.id);
 						files.push({
@@ -102,7 +115,7 @@ export async function startBridge(
 				}
 
 				await webhook.send({
-					content: truncateForDiscord(content),
+					content: truncateForDiscord(content, oversizedLinks),
 					username,
 					files,
 					// TODO: avatarURL - Harmon profiles have no avatar field yet.
@@ -169,8 +182,19 @@ function sanitizeWebhookUsername(name: string): string {
 		.replace(/clyde/gi, (m) => `${m.slice(0, 2)}·${m.slice(2)}`);
 }
 
-function truncateForDiscord(content: string): string {
-	return content.length <= DISCORD_MESSAGE_LIMIT
-		? content
-		: content.slice(0, DISCORD_MESSAGE_LIMIT);
+/**
+ * Truncates `content` to fit Discord's message limit, reserving space for
+ * `extraLines` (e.g. oversized-attachment links) so they always survive
+ * intact even if the original content has to be cut short.
+ */
+function truncateForDiscord(content: string, extraLines: string[] = []): string {
+	const suffix = extraLines.join("\n");
+	const budget = Math.max(0, DISCORD_MESSAGE_LIMIT - (suffix ? suffix.length + 1 : 0));
+	const body = content.length > budget ? content.slice(0, budget) : content;
+	return [body, suffix].filter(Boolean).join("\n");
+}
+
+function formatBytes(bytes: number): string {
+	const mb = bytes / (1024 * 1024);
+	return `${mb.toFixed(1)}MB`;
 }
