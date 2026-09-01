@@ -2,9 +2,6 @@ name: build
 
 on:
   push:
-    paths:
-      - .
-      - .github/workflows/build.yaml
     branches: ["main"]
 
 jobs:
