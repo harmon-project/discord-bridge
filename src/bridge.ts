@@ -17,6 +17,7 @@ const DISCORD_MESSAGE_LIMIT = 2000;
 // guild's tier here, so use the safe non-boosted default rather than risk a
 // 413 on send.
 const DISCORD_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const DISCORD_MAX_ATTACHMENTS_PER_MESSAGE = 10;
 
 interface Pair {
 	discordChannelId: string;
@@ -114,12 +115,21 @@ export async function startBridge(
 					}
 				}
 
-				await webhook.send({
-					content: truncateForDiscord(content, oversizedLinks),
-					username,
-					files,
-					// TODO: avatarURL - Harmon profiles have no avatar field yet.
-				});
+				// Discord caps a message at 10 attachments, so a Harmon message
+				// carrying more is split: text + the first batch go out together,
+				// the rest follow as file-only messages under the same username.
+				const batches = chunk(files, DISCORD_MAX_ATTACHMENTS_PER_MESSAGE);
+				for (const [index, batch] of (batches.length ? batches : [[]]).entries()) {
+					await webhook.send({
+						content:
+							index === 0
+								? truncateForDiscord(content, oversizedLinks)
+								: undefined,
+						username,
+						files: batch,
+						// TODO: avatarURL - Harmon profiles have no avatar field yet.
+					});
+				}
 			} catch (error) {
 				console.error(
 					`[bridge] failed to relay Harmon message to Discord:`,
@@ -192,4 +202,12 @@ function truncateForDiscord(content: string, extraLines: string[] = []): string 
 	const budget = Math.max(0, DISCORD_MESSAGE_LIMIT - (suffix ? suffix.length + 1 : 0));
 	const body = content.length > budget ? content.slice(0, budget) : content;
 	return [body, suffix].filter(Boolean).join("\n");
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+	const chunks: T[][] = [];
+	for (let i = 0; i < items.length; i += size) {
+		chunks.push(items.slice(i, i + size));
+	}
+	return chunks;
 }
